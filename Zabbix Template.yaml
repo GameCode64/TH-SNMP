@@ -1,0 +1,40 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: c2c162144c2d4c5491c8801193af4945
+      name: Templates/Cloud
+  templates:
+    - uuid: 94c6b10fce954e25861bc34563d1ad0c
+      template: 'SNMP IoT Sensors'
+      name: 'SNMP IoT Sensors'
+      groups:
+        - name: Templates/Cloud
+      items:
+        - uuid: 56df99bd02e348c980b1ed6e33c5a6b8
+          name: Humidity
+          type: SNMP_AGENT
+          snmp_oid: 'get[iso.3.6.1.4.1.64.2]'
+          key: env.humidity
+          value_type: FLOAT
+          units: '%'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.001'
+        - uuid: 2b1ba862672545bbb4e12413431b60cd
+          name: Temperature
+          type: SNMP_AGENT
+          snmp_oid: 'get[iso.3.6.1.4.1.64.1]'
+          key: env.temp
+          value_type: FLOAT
+          units: c
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.001'
+        - uuid: eb05b13059dc48de98a8a3f2c421c983
+          name: Uptime
+          type: SNMP_AGENT
+          snmp_oid: 'get[iso.3.6.1.4.1.64.0]'
+          key: system.uptime
+          units: s
