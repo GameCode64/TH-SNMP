@@ -6,20 +6,17 @@
 //#include <Adafruit_SHT4x.h>
 #include <Wire.h>
 #include <SNMP_Agent.h>
-
 #include <ClosedCube_HDC1080.h>
 #if TTGO
 #include <TFT_eSPI.h>
 #endif
 // WIFI credentials
-const char* SSID = "gc64test";
-const char* W_PWD = "aow897t43u82o8";
-
+const char* SSID = "gc64test";                     // Wifi SSID
+const char* W_PWD = "aow897t43u82o8";              // Wifi Pre-shared key (password)
 
 #define I2C_SCL_PIN 22
 #define I2C_SDA_PIN 21
 //#define SHT40_ADDR 0x44
-
 
 #if TTGO
 #define BTN_1 35
@@ -34,13 +31,14 @@ WiFiUDP UDP;
 
 // Initializing variables
 unsigned long UptimeStart = 0;
+unsigned long FrameCounter = 0;
 float Temp;
 float Hum;
 
 // Setting up some constants for the OIDs
+const char* Uptime_OID = ".1.3.6.1.4.1.64.0";
 const char* Temperature_OID = ".1.3.6.1.4.1.64.1";
 const char* Humidity_OID = ".1.3.6.1.4.1.64.2";
-const char* Uptime_OID = ".1.3.6.1.4.1.64.0";
 
 
 #if TTGO
@@ -72,7 +70,6 @@ void setup() {
   */
 
   hdc1080.begin(0x40);
-
 #if TTGO
   pinMode(BTN_1, INPUT_PULLUP);
   pinMode(BTN_2, INPUT_PULLUP);
@@ -89,10 +86,12 @@ void setup() {
 
 
 #if TTGO
+// Quick function to set a screen brightness (0 ~ 255)
 void SetBrightness(int _Value) {
   analogWrite(TFT_BL, _Value);
 }
 
+// Basic initiation for the screen.
 void InitScreen() {
   Tft.init();
   Tft.setRotation(1);
@@ -102,6 +101,7 @@ void InitScreen() {
   SetBrightness(128);
 }
 
+// Reacting on the flags that has been set with the interrupts.
 void BtnControll() {
   if (b_BTN1_Pressed) {
     b_BTN1_Pressed = false;
@@ -117,6 +117,7 @@ void BtnControll() {
   }
 }
 
+// While not really being a screensaver it does lowers powerconsumption to dim the screen.
 void Screensaver() {
   if (ScreensaverTimer <= 10) {
     ScreensaverTimer++;
@@ -126,6 +127,7 @@ void Screensaver() {
   }
 }
 
+// Outputting info on the LCD (Currently only for the Lilygo/TTGO T-display)
 void ShowInfo() {
   Tft.fillScreen(TFT_BLACK);
   Tft.setCursor(0, 0);
@@ -148,6 +150,7 @@ void ShowInfo() {
   }
 }
 
+// Clearing the line to avoid artifacting
 void ClearLine() {
   int X = Tft.getCursorX();
   int Y = Tft.getCursorY();
@@ -157,22 +160,34 @@ void ClearLine() {
   Tft.setCursor(X, Y);
 }
 
+// Moving the info output outside the main loop to avoid delays, for faster response
+void ScreenRefresh()
+{
+  if ( FrameCounter < (int)(millis()/1000) )
+  {
+    FrameCounter = millis()/1000; // Setting the Framecounter to the next second of runtime
+    #if TTGO
+    ShowInfo();
+    Screensaver();
+    #else
+    ShowInfoSerial();
+    #endif
+  }
+
+}
+
 #endif
 
 void loop() {
   _SNMP.loop();
   GetHDC1080SensorData();
 #if TTGO
-  ShowInfo();
   BtnControll();
-  Screensaver();
-#else
-  ShowInfoSerial();
 #endif
-
-  delay(1000);
+  ScreenRefresh();
 }
 
+// Connecting to Wifi 
 bool ConnectWifi() {
   WiFi.begin(SSID, W_PWD);
   unsigned long startAttemptTime = millis();
@@ -218,10 +233,9 @@ float ReadHumidity() {
   return Hum;
 }
 
+// Ouputting the info on the Serial connection
 void ShowInfoSerial() {
   CLS();
-
-
   Serial.printf("IP: %s\n\r", WiFi.localIP().toString());
   Serial.print("MAC: ");
   Serial.println(WiFi.macAddress());
@@ -232,6 +246,7 @@ void ShowInfoSerial() {
   Serial.print("%\n\r");
 }
 
+// Getting values from the HDC1080 Sensor
 void GetHDC1080SensorData() {
   /**
   * Resolution types:
@@ -245,26 +260,32 @@ void GetHDC1080SensorData() {
   Hum = hdc1080.readHumidity();
 }
 
+// Clearing the screen
 void CLS() {
   Serial.print("\033[0H\033[0J");
 }
 
+// Converting a float to a int.
 int FloatToInt(float Value) {
   return static_cast<int>(Value * 1000);
 }
 
+// Callback function For Temp
 int DynTemp() {
   return FloatToInt(Temp);
 }
 
+// Callback function For Uptime
 int DynUptime() {
   return ((millis() - UptimeStart) / 1000);
 }
 
+// Callback function For Humidity
 int DynHumidity() {
   return FloatToInt(Hum);
 }
 
+// SNMP setup and adding handlers for the OIDs
 void SetupSNMP() {
   Serial.println(FloatToInt(Temp));
   _SNMP.setUDP(&UDP);
@@ -272,6 +293,5 @@ void SetupSNMP() {
   _SNMP.addDynamicIntegerHandler(Uptime_OID, DynUptime);
   _SNMP.addDynamicIntegerHandler(Temperature_OID, DynTemp);
   _SNMP.addDynamicIntegerHandler(Humidity_OID, DynHumidity);
-
   _SNMP.sortHandlers();
 }
