@@ -6,7 +6,7 @@
  - [TFT_eSPI by Bodmer](https://github.com/Bodmer/TFT_eSPI)
  - [Adafruit_SHT4x By Adafruit](https://github.com/adafruit/Adafruit_SHT4x) (Only applyable when using a SHT4x unit, couldn't test [for now] due to a faulty unit)
 
-## Configuartion
+## Configuration
 Replace the SSID and W_PWD (Wifi Password) with your own credentials. These are just placeholder ;)
 The current setup is specific for the LilyGo/TTGO T-display.
 
